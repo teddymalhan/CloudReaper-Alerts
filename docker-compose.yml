@@ -1,0 +1,20 @@
+name: aws-play
+
+services:
+  floci:
+    image: floci/floci:latest
+    ports:
+      - "4566:4566"
+      - "6379-6399:6379-6399"
+      - "7001-7099:7001-7099"
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_SERVICES_DOCKER_NETWORK: aws-play_default
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - floci-data:/app/data
+
+volumes:
+  floci-data:
