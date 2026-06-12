@@ -65,9 +65,10 @@ pipeline {
                 if (env.ORPHANS_FOUND == 'true') {
                     echo 'Orphans found — sending Slack alert through the pipeline'
                     sh '''
-                        SEND_URL=$(terraform -chdir=terraform output -raw send_message_endpoint)
+                        QUEUE_URL=$(terraform -chdir=terraform output -raw main_queue_send_url)
                         go build -o build/sender ./cmd/sender
-                        ./build/sender -report build/report.json -endpoint "$SEND_URL" -build-url "$BUILD_URL"
+                        AWS_ENDPOINT_URL="$AWS_ENDPOINT_URL" ./build/sender \
+                          -report build/report.json -queue-url "$QUEUE_URL" -build-url "$BUILD_URL"
                     '''
                 } else {
                     echo 'No orphans found — no Slack notification sent.'

@@ -57,14 +57,16 @@ if [ "$ORPHANS" -eq 0 ]; then
 fi
 
 # 5. Notify ----------------------------------------------------------------------
-SEND_URL="$(terraform -chdir=terraform output -raw send_message_endpoint)"
+# Local/Floci uses the direct-SQS path (the emulator's API Gateway→SQS service integration is
+# unsupported). On real AWS you'd instead POST to the `send_message_endpoint` output.
+QUEUE_URL="$(terraform -chdir=terraform output -raw main_queue_send_url)"
 if [ "$DRY_RUN" -eq 1 ]; then
-  echo "==> [dry-run] orphans found; would POST report to:"
-  echo "    $SEND_URL"
+  echo "==> [dry-run] orphans found; would enqueue alert to:"
+  echo "    $QUEUE_URL"
   exit 0
 fi
 
-echo "==> Sending orphan alert to $SEND_URL"
+echo "==> Enqueuing orphan alert to $QUEUE_URL"
 go build -o build/sender ./cmd/sender
-./build/sender -report build/report.json -endpoint "$SEND_URL" -build-url "${BUILD_URL:-local-run}"
+AWS_ENDPOINT_URL="$ENDPOINT" ./build/sender -report build/report.json -queue-url "$QUEUE_URL" -build-url "${BUILD_URL:-local-run}"
 echo "==> Alert queued. Check the notifier Lambda logs and your Slack channel."

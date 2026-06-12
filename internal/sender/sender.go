@@ -11,6 +11,9 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+
 	"github.com/teddymalhan/aws-play/internal/alert"
 	"github.com/teddymalhan/aws-play/internal/detector"
 )
@@ -49,6 +52,29 @@ func Post(ctx context.Context, client *http.Client, endpoint string, a alert.Orp
 	if resp.StatusCode/100 != 2 {
 		respBody, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("endpoint returned %s: %s", resp.Status, string(respBody))
+	}
+	return nil
+}
+
+// SQSAPI is the subset of the SQS client used by Enqueue (so tests can fake it).
+type SQSAPI interface {
+	SendMessage(ctx context.Context, in *sqs.SendMessageInput, optFns ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
+}
+
+// Enqueue sends the alert JSON straight to an SQS queue. Used for the local/Floci path, where
+// the emulator's API Gateway → SQS service integration is unsupported; the resulting message is
+// identical to what the API Gateway would have queued, so the rest of the pipeline is unchanged.
+func Enqueue(ctx context.Context, c SQSAPI, queueURL string, a alert.OrphanAlert) error {
+	body, err := json.Marshal(a)
+	if err != nil {
+		return fmt.Errorf("marshal alert: %w", err)
+	}
+	_, err = c.SendMessage(ctx, &sqs.SendMessageInput{
+		QueueUrl:    aws.String(queueURL),
+		MessageBody: aws.String(string(body)),
+	})
+	if err != nil {
+		return fmt.Errorf("send to queue %s: %w", queueURL, err)
 	}
 	return nil
 }

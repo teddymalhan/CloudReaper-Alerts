@@ -10,9 +10,42 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+
 	"github.com/teddymalhan/aws-play/internal/alert"
 	"github.com/teddymalhan/aws-play/internal/detector"
 )
+
+type fakeSQS struct {
+	gotQueueURL string
+	gotBody     string
+	err         error
+}
+
+func (f *fakeSQS) SendMessage(_ context.Context, in *sqs.SendMessageInput, _ ...func(*sqs.Options)) (*sqs.SendMessageOutput, error) {
+	f.gotQueueURL = aws.ToString(in.QueueUrl)
+	f.gotBody = aws.ToString(in.MessageBody)
+	return &sqs.SendMessageOutput{}, f.err
+}
+
+func TestEnqueueSendsAlert(t *testing.T) {
+	f := &fakeSQS{}
+	a := alert.OrphanAlert{Source: "orphan-watch", TotalOrphans: 2}
+	if err := Enqueue(context.Background(), f, "http://localhost:4566/000000000000/q", a); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if f.gotQueueURL != "http://localhost:4566/000000000000/q" {
+		t.Errorf("queue url: got %q", f.gotQueueURL)
+	}
+	var sent alert.OrphanAlert
+	if err := json.Unmarshal([]byte(f.gotBody), &sent); err != nil {
+		t.Fatalf("body not valid JSON: %v", err)
+	}
+	if sent.Source != "orphan-watch" || sent.TotalOrphans != 2 {
+		t.Errorf("body not delivered intact: %+v", sent)
+	}
+}
 
 func TestPostSendsJSON(t *testing.T) {
 	var gotMethod, gotCT string

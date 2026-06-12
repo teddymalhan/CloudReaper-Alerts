@@ -5,8 +5,13 @@ output "send_message_endpoint" {
 }
 
 output "main_queue_url" {
-  description = "Main SQS queue URL."
+  description = "Main SQS queue URL (as the emulator reports it, internal host)."
   value       = aws_sqs_queue.main.url
+}
+
+output "main_queue_send_url" {
+  description = "Host-reachable main queue URL for cmd/sender -queue-url (direct-SQS mode)."
+  value       = "${var.aws_endpoint}/${local.account_id}/${aws_sqs_queue.main.name}"
 }
 
 output "dlq_url" {
