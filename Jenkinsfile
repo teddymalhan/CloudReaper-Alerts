@@ -13,16 +13,16 @@ pipeline {
     }
 
     stages {
-        stage('Start LocalStack') {
+        stage('Start Floci') {
             steps {
                 sh '''
-                    if ! curl -sf "$AWS_ENDPOINT_URL/_localstack/health" >/dev/null 2>&1; then
-                      docker run --rm -d -p 4566:4566 --name localstack localstack/localstack:4.14.0
-                      for _ in $(seq 1 30); do
-                        curl -sf "$AWS_ENDPOINT_URL/_localstack/health" >/dev/null 2>&1 && break
-                        sleep 2
-                      done
+                    if ! curl -s -o /dev/null "$AWS_ENDPOINT_URL" 2>/dev/null; then
+                      docker compose up -d floci
                     fi
+                    for _ in $(seq 1 45); do
+                      curl -s -o /dev/null "$AWS_ENDPOINT_URL" 2>/dev/null && break
+                      sleep 2
+                    done
                 '''
             }
         }
@@ -73,7 +73,7 @@ pipeline {
                     echo 'No orphans found — no Slack notification sent.'
                 }
             }
-            sh 'docker rm -f localstack >/dev/null 2>&1 || true'
+            // Floci is a persistent compose service — left running between builds.
         }
     }
 }

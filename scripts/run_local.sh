@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# End-to-end local demo: provision on LocalStack, scan for orphans, and (if any) push a Slack
-# alert through the pipeline. Pass --dry-run to skip the final POST and just print the report.
+# End-to-end local demo: provision on Floci (AWS emulator), scan for orphans, and (if any) push
+# a Slack alert through the pipeline. Pass --dry-run to skip the final POST and print the report.
 #
 #   SLACK_BOT_TOKEN / SLACK_CHANNEL_ID  — set these for a real Slack message (else placeholders).
 set -euo pipefail
@@ -14,17 +14,17 @@ SLACK_CHANNEL_ID="${SLACK_CHANNEL_ID:-C0000000000}"
 DRY_RUN=0
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=1
 
-# 1. LocalStack -----------------------------------------------------------------
-if ! curl -sf "$ENDPOINT/_localstack/health" >/dev/null 2>&1; then
-  echo "==> Starting LocalStack"
-  docker run --rm -d -p 4566:4566 --name localstack localstack/localstack:4.14.0 >/dev/null
-  echo -n "    waiting for health"
-  for _ in $(seq 1 30); do
-    curl -sf "$ENDPOINT/_localstack/health" >/dev/null 2>&1 && break
-    echo -n "."; sleep 2
-  done
-  echo
+# 1. Floci (AWS emulator) -------------------------------------------------------
+if ! curl -s -o /dev/null "$ENDPOINT" 2>/dev/null; then
+  echo "==> Starting Floci (docker compose)"
+  docker compose up -d floci
 fi
+echo -n "    waiting for Floci on $ENDPOINT"
+for _ in $(seq 1 45); do
+  curl -s -o /dev/null "$ENDPOINT" 2>/dev/null && break
+  echo -n "."; sleep 2
+done
+echo
 
 # 2. Build the notifier Lambda (Linux bootstrap zip) ----------------------------
 echo "==> Building notifier Lambda"

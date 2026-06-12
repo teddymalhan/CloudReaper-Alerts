@@ -90,6 +90,8 @@ resource "aws_lambda_function" "notifier" {
   environment {
     variables = {
       SECRET_NAME = aws_secretsmanager_secret.slack.name
+      # Reach Floci from inside its docker network; the notifier honors AWS_ENDPOINT_URL.
+      AWS_ENDPOINT_URL = var.lambda_internal_endpoint
     }
   }
 

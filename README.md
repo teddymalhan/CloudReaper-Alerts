@@ -14,10 +14,10 @@ automatic Slack alert through an SQS-backed pipeline. It combines two ideas:
 
 ```
 Jenkinsfile
-  └─ terraform apply ──► LocalStack
+  └─ terraform apply ──► Floci
         • scan targets: VPC, EC2, unattached EBS, unassociated EIP  (things to detect)
         • pipeline:     API Gateway POST /send-message ─► SQS (+DLQ) ─► Lambda ─► Slack
-  └─ detector  ─ scans LocalStack, writes report.json, exits 1 if orphans found
+  └─ detector  ─ scans Floci, writes report.json, exits 1 if orphans found
   └─ sender    ─ on orphans, POSTs the orphan summary to API Gateway ─► … ─► Slack
 ```
 
@@ -25,11 +25,11 @@ Jenkinsfile
 
 | Path | What |
 |---|---|
-| `cmd/detector` | CLI: scan LocalStack for orphans, write `report.json` |
+| `cmd/detector` | CLI: scan Floci for orphans, write `report.json` |
 | `cmd/sender`   | CLI: read `report.json`, POST orphan summary to the API Gateway |
 | `cmd/notifier` | Lambda: SQS event → format → send to Slack |
 | `internal/*`   | Testable logic for each of the above |
-| `terraform/`   | LocalStack provider, scan targets, and the Slack pipeline |
+| `terraform/`   | Floci provider, scan targets, and the Slack pipeline |
 | `scripts/run_local.sh` | One-shot local demo |
 | `Jenkinsfile`  | CI orchestration |
 
@@ -42,19 +42,20 @@ Requires Docker, Terraform, and Go.
 export SLACK_BOT_TOKEN=xoxb-...
 export SLACK_CHANNEL_ID=C0123ABCD
 
-# Full demo: LocalStack → terraform apply → detect → (if orphans) send alert
+# Full demo: Floci → terraform apply → detect → (if orphans) send alert
 bash scripts/run_local.sh
 
 # Provision + detect, but don't actually POST the alert:
 bash scripts/run_local.sh --dry-run
 ```
 
-The script: starts LocalStack, builds the notifier Lambda zip, `terraform apply`s the scan
+The script: starts Floci, builds the notifier Lambda zip, `terraform apply`s the scan
 targets + pipeline, runs the detector (writes `build/report.{json,md}`, exits 1 on orphans), and
 on orphans POSTs the summary to the API Gateway endpoint, which fans out to SQS → Lambda → Slack.
 
-> Note: inside LocalStack the notifier Lambda reaches Secrets Manager via LocalStack's
-> auto-injected `AWS_ENDPOINT_URL`; the code falls back to it when set.
+> Note: the notifier Lambda reaches Secrets Manager at `http://floci:4566` (Terraform sets
+> `AWS_ENDPOINT_URL` on the function via the `lambda_internal_endpoint` var). Set it to `""`
+> when deploying against real AWS.
 
 ## CI (Jenkins)
 
@@ -69,4 +70,4 @@ go test ./...      # unit tests for detector, alert, slack, sender, notifier
 ```
 
 The Go logic is unit-tested without AWS (fake EC2 client, httptest server, fake Slack poster).
-LocalStack/Terraform are exercised by `scripts/run_local.sh`.
+Floci/Terraform are exercised by `scripts/run_local.sh`.

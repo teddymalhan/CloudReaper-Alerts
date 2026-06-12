@@ -5,9 +5,15 @@ variable "aws_region" {
 }
 
 variable "aws_endpoint" {
-  description = "LocalStack gateway endpoint."
+  description = "Floci (AWS emulator) gateway endpoint, from the host."
   type        = string
   default     = "http://localhost:4566"
+}
+
+variable "lambda_internal_endpoint" {
+  description = "AWS endpoint the notifier Lambda uses from inside Floci's docker network. Empty = rely on emulator auto-injection / real AWS."
+  type        = string
+  default     = "http://floci:4566"
 }
 
 variable "project" {
