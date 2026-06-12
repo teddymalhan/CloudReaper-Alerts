@@ -9,14 +9,8 @@ automatic Slack alert through an SQS-backed pipeline.
 
 ## Architecture
 
-```
-Jenkinsfile
-  └─ terraform apply ──► Floci
-        • scan targets: VPC, EC2, unattached EBS, unassociated EIP  (things to detect)
-        • pipeline:     API Gateway POST /send-message ─► SQS (+DLQ) ─► Lambda ─► Slack
-  └─ detector  ─ scans Floci, writes report.json, exits 1 if orphans found
-  └─ sender    ─ on orphans, POSTs the orphan summary to API Gateway ─► … ─► Slack
-```
+<img width="2314" height="2091" alt="My First Board (2)" src="https://github.com/user-attachments/assets/37944f23-6697-4b7d-ac71-f621f43f34ab" />
+
 
 ## Building
 
