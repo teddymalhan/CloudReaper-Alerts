@@ -51,10 +51,15 @@ archives:
       - goos: windows
         formats: [zip]
 
-  # Lambda zips: must contain only bootstrap so Terraform can deploy directly
-  - id: lambda-archives
-    ids: [notifier, reactor]
-    name_template: "{{ .ProjectName }}_{{ .Binary }}_lambda_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  # Lambda zips: separate entries because both binaries are named bootstrap
+  - id: notifier-archive
+    ids: [notifier]
+    name_template: "{{ .ProjectName }}_notifier_lambda_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [zip]
+
+  - id: reactor-archive
+    ids: [reactor]
+    name_template: "{{ .ProjectName }}_reactor_lambda_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     formats: [zip]
 
 checksum:

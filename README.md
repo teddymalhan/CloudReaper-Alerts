@@ -18,19 +18,6 @@ Jenkinsfile
   └─ sender    ─ on orphans, POSTs the orphan summary to API Gateway ─► … ─► Slack
 ```
 
-## Layout
-
-| Path | What |
-|---|---|
-| `cmd/detector` | CLI: scan Floci for orphans, write `report.json` |
-| `cmd/sender`   | CLI: read `report.json`, POST orphan summary to the API Gateway |
-| `cmd/notifier` | Lambda: SQS event → format → send to Slack |
-| `internal/*`   | Testable logic for each of the above |
-| `terraform/`   | Floci provider, scan targets, and the Slack pipeline |
-| `Makefile`     | Packaging: CLI binaries → `build/`, deterministic Lambda zips → `terraform/build/` |
-| `scripts/run_local.sh` | One-shot local demo |
-| `Jenkinsfile`  | CI orchestration |
-
 ## Building
 
 ```bash
@@ -59,8 +46,8 @@ The [release workflow](.github/workflows/release.yml) runs [GoReleaser](https://
 |---|---|
 | `cloudreaper-alerts_detector_<version>_<os>_<arch>.tar.gz` | Detector CLI — Linux / macOS / Windows, amd64 + arm64 |
 | `cloudreaper-alerts_sender_<version>_<os>_<arch>.tar.gz` | Sender CLI — same platforms |
-| `cloudreaper-alerts_bootstrap_lambda_<version>_linux_<arch>.zip` | Notifier Lambda zip — drop-in for `var.lambda_zip` in Terraform |
-| `cloudreaper-alerts_bootstrap_lambda_<version>_linux_<arch>.zip` | Reactor Lambda zip — drop-in for `var.reactor_zip` in Terraform |
+| `cloudreaper-alerts_notifier_lambda_<version>_linux_<arch>.zip` | Notifier Lambda zip — drop-in for `var.lambda_zip` in Terraform |
+| `cloudreaper-alerts_reactor_lambda_<version>_linux_<arch>.zip` | Reactor Lambda zip — drop-in for `var.reactor_zip` in Terraform |
 | `checksums.txt` | SHA256 checksums for all artifacts |
 
 ## Running locally
@@ -82,17 +69,6 @@ bash scripts/run_local.sh --dry-run
 The script: starts Floci, builds the notifier Lambda zip, `terraform apply`s the scan
 targets + pipeline, runs the detector (writes `build/report.{json,md}`, exits 1 on orphans), and
 on orphans delivers the summary into SQS → Lambda → Slack.
-
-> **HTTP front door vs. local path.** The Terraform provisions the slacked-style HTTP entry
-> (`API Gateway POST /send-message` → SQS), which works on real AWS. Floci does **not** support
-> API Gateway's AWS-service (→SQS) integration, so the local demo and Jenkins use
-> `cmd/sender -queue-url …` to put the *identical* message straight on the queue. Everything
-> downstream (SQS → Lambda → Slack) is the same either way. On real AWS, use
-> `cmd/sender -endpoint <api-url>` instead (the `send_message_endpoint` output).
-
-> Note: the notifier Lambda reaches Secrets Manager at `http://floci:4566` (Terraform sets
-> `AWS_ENDPOINT_URL` on the function via the `lambda_internal_endpoint` var). Set it to `""`
-> when deploying against real AWS.
 
 ## CI (Jenkins)
 
