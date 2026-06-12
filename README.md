@@ -27,6 +27,7 @@ Jenkinsfile
 | `cmd/notifier` | Lambda: SQS event → format → send to Slack |
 | `internal/*`   | Testable logic for each of the above |
 | `terraform/`   | Floci provider, scan targets, and the Slack pipeline |
+| `Makefile`     | Packaging: CLI binaries → `build/`, deterministic Lambda zips → `terraform/build/` |
 | `scripts/run_local.sh` | One-shot local demo |
 | `Jenkinsfile`  | CI orchestration |
 
