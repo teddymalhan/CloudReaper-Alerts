@@ -91,6 +91,34 @@ func FindUnattachedEBS(ctx context.Context, c EC2API) ([]Finding, error) {
 	return findings, nil
 }
 
+// CheckVolume runs a targeted orphan check on a single EBS volume id. It is the event-driven
+// counterpart of FindUnattachedEBS: the reactor calls it in response to a DetachVolume CloudTrail
+// event to confirm the just-detached volume is now "available" (unattached) before alerting.
+// Returns no finding if the volume was re-attached or deleted in the meantime.
+func CheckVolume(ctx context.Context, c EC2API, volumeID string) ([]Finding, error) {
+	out, err := c.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{VolumeIds: []string{volumeID}})
+	if err != nil {
+		return nil, fmt.Errorf("describe volume %s: %w", volumeID, err)
+	}
+	var findings []Finding
+	for _, v := range out.Volumes {
+		if v.State != types.VolumeStateAvailable {
+			continue
+		}
+		size := float64(aws.ToInt32(v.Size))
+		findings = append(findings, Finding{
+			ResourceID:              aws.ToString(v.VolumeId),
+			ResourceType:            "ebs_volume",
+			Reason:                  "unattached",
+			AgeDays:                 ageDays(v.CreateTime),
+			EstimatedMonthlyCostUSD: round2(size * EBSGp3PerGBMonth),
+			Tags:                    requiredTagSubset(v.Tags),
+			SuggestedAction:         "delete",
+		})
+	}
+	return findings, nil
+}
+
 // FindLongStoppedInstances flags instances stopped for longer than StoppedDaysThreshold.
 func FindLongStoppedInstances(ctx context.Context, c EC2API) ([]Finding, error) {
 	out, err := c.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
@@ -216,11 +244,16 @@ func Scan(ctx context.Context, c EC2API, region, accountID string) (Report, erro
 		findings = append(findings, f...)
 	}
 
+	return NewReport(findings, region, accountID), nil
+}
+
+// NewReport rolls a set of findings up into a Report (summary totals + scan timestamp). Shared by
+// the full Scan and the event-driven reactor so both emit an identical report/alert shape.
+func NewReport(findings []Finding, region, accountID string) Report {
 	var waste float64
 	for _, f := range findings {
 		waste += f.EstimatedMonthlyCostUSD
 	}
-
 	return Report{
 		ScanTimestamp: nowFunc().UTC().Format("2006-01-02T15:04:05Z"),
 		AccountID:     accountID,
@@ -230,5 +263,5 @@ func Scan(ctx context.Context, c EC2API, region, accountID string) (Report, erro
 			EstimatedMonthlyWasteUSD: round2(waste),
 		},
 		Findings: findings,
-	}, nil
+	}
 }

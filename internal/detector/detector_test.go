@@ -103,6 +103,46 @@ func TestFindUnattachedEBS(t *testing.T) {
 	}
 }
 
+func TestCheckVolume(t *testing.T) {
+	withFixedNow(t)
+	created := time.Date(2026, 6, 8, 0, 0, 0, 0, time.UTC) // 3 days old
+
+	t.Run("available volume is flagged", func(t *testing.T) {
+		f := &fakeEC2{allVolumes: []types.Volume{{
+			VolumeId:   aws.String("vol-detached"),
+			Size:       aws.Int32(8),
+			State:      types.VolumeStateAvailable,
+			CreateTime: &created,
+			Tags:       allRequiredTags(),
+		}}}
+		got, err := CheckVolume(context.Background(), f, "vol-detached")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 1 || got[0].ResourceID != "vol-detached" || got[0].Reason != "unattached" {
+			t.Fatalf("want one unattached finding, got %+v", got)
+		}
+		if got[0].EstimatedMonthlyCostUSD != 0.64 { // 8 * 0.08
+			t.Errorf("cost: want 0.64, got %v", got[0].EstimatedMonthlyCostUSD)
+		}
+	})
+
+	t.Run("re-attached volume is ignored", func(t *testing.T) {
+		f := &fakeEC2{allVolumes: []types.Volume{{
+			VolumeId: aws.String("vol-reattached"),
+			Size:     aws.Int32(8),
+			State:    types.VolumeStateInUse,
+		}}}
+		got, err := CheckVolume(context.Background(), f, "vol-reattached")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("in-use volume should not be flagged, got %+v", got)
+		}
+	})
+}
+
 func TestFindLongStoppedInstances(t *testing.T) {
 	withFixedNow(t)
 	f := &fakeEC2{stoppedInstances: []types.Instance{

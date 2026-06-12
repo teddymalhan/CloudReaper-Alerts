@@ -11,8 +11,10 @@ provider "aws" {
 
   endpoints {
     apigateway     = var.aws_endpoint
+    cloudtrail     = var.aws_endpoint
     cloudwatchlogs = var.aws_endpoint
     ec2            = var.aws_endpoint
+    events         = var.aws_endpoint
     iam            = var.aws_endpoint
     lambda         = var.aws_endpoint
     s3             = var.aws_endpoint

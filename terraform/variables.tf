@@ -58,3 +58,19 @@ variable "slack_channel_id" {
   type        = string
   default     = "C0000000000"
 }
+
+variable "enable_reactor" {
+  description = <<-EOT
+    Provision the event-driven reactor (CloudTrail + EventBridge + reactor Lambda). Defaults to
+    false because CloudTrail is unsupported on Floci; set true for real AWS to alert the moment a
+    resource is orphaned, in addition to the scheduled scan.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "reactor_zip" {
+  description = "Path to the built reactor Lambda zip (bootstrap inside). Only needed when enable_reactor=true."
+  type        = string
+  default     = "build/reactor.zip"
+}

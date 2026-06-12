@@ -38,3 +38,13 @@ output "orphan_eip_id" {
   description = "The deliberately unassociated Elastic IP (should be flagged)."
   value       = aws_eip.orphan.allocation_id
 }
+
+output "reactor_function_name" {
+  description = "Event-driven reactor Lambda name (null unless enable_reactor=true)."
+  value       = one(aws_lambda_function.reactor[*].function_name)
+}
+
+output "reactor_event_rule" {
+  description = "EventBridge rule matching orphan-creating EC2 actions (null unless enable_reactor=true)."
+  value       = one(aws_cloudwatch_event_rule.ec2_orphan_actions[*].name)
+}
