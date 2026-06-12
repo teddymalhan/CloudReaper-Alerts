@@ -1,7 +1,11 @@
-# 
+<h1 align="center">OrphanWatch</h1>
+<img width="2377" height="1995" alt="bettershot_1781242034744" src="https://github.com/user-attachments/assets/c8b237fa-d84a-446a-b226-f5b48f918f04" />
 
-A self-contained **Go + Terraform** system that detects orphaned AWS resources and posts an
-automatic Slack alert through an SQS-backed pipeline. 
+<p align="center">
+A self-contained <b>Go + Terraform</b> system that detects orphaned AWS resources and posts an
+automatic Slack alert through an SQS-backed pipeline.
+</p>
+
 
 ## Architecture
 
