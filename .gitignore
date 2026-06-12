@@ -4,7 +4,9 @@
 *.out
 dist/
 
-# Lambda build artifacts
+# Build artifacts (CLIs in build/, Lambda zips in terraform/build/)
+/build/
+/terraform/build/
 cmd/notifier/bootstrap
 cmd/notifier/*.zip
 terraform/*.zip

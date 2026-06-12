@@ -30,10 +30,7 @@ pipeline {
         stage('Provision') {
             steps {
                 sh '''
-                    mkdir -p terraform/build
-                    GOOS=linux GOARCH=$(go env GOARCH) CGO_ENABLED=0 \
-                      go build -tags lambda.norpc -o terraform/build/bootstrap ./cmd/notifier
-                    ( cd terraform/build && rm -f notifier.zip && zip -q notifier.zip bootstrap )
+                    make notifier
 
                     terraform -chdir=terraform init -input=false
                     terraform -chdir=terraform apply -auto-approve -input=false \
@@ -46,7 +43,7 @@ pipeline {
         stage('Detect Orphans') {
             steps {
                 script {
-                    sh 'mkdir -p build && go build -o build/detector ./cmd/detector'
+                    sh 'make detector'
                     def rc = sh(
                         returnStatus: true,
                         script: './build/detector -report build/report.json -markdown build/report.md'
@@ -66,7 +63,7 @@ pipeline {
                     echo 'Orphans found — sending Slack alert through the pipeline'
                     sh '''
                         QUEUE_URL=$(terraform -chdir=terraform output -raw main_queue_send_url)
-                        go build -o build/sender ./cmd/sender
+                        make sender
                         AWS_ENDPOINT_URL="$AWS_ENDPOINT_URL" ./build/sender \
                           -report build/report.json -queue-url "$QUEUE_URL" -build-url "$BUILD_URL"
                     '''

@@ -28,10 +28,7 @@ echo
 
 # 2. Build the notifier Lambda (Linux bootstrap zip) ----------------------------
 echo "==> Building notifier Lambda"
-mkdir -p terraform/build build
-GOOS=linux GOARCH="$(go env GOARCH)" CGO_ENABLED=0 \
-  go build -tags lambda.norpc -o terraform/build/bootstrap ./cmd/notifier
-( cd terraform/build && rm -f notifier.zip && zip -q notifier.zip bootstrap )
+make notifier
 
 # 3. Provision -------------------------------------------------------------------
 echo "==> terraform apply"
@@ -42,7 +39,7 @@ terraform -chdir=terraform apply -auto-approve -input=false \
 
 # 4. Detect ----------------------------------------------------------------------
 echo "==> Running detector"
-go build -o build/detector ./cmd/detector
+make detector
 set +e
 AWS_ENDPOINT_URL="$ENDPOINT" ./build/detector -report build/report.json -markdown build/report.md
 ORPHANS=$?
@@ -67,6 +64,6 @@ if [ "$DRY_RUN" -eq 1 ]; then
 fi
 
 echo "==> Enqueuing orphan alert to $QUEUE_URL"
-go build -o build/sender ./cmd/sender
+make sender
 AWS_ENDPOINT_URL="$ENDPOINT" ./build/sender -report build/report.json -queue-url "$QUEUE_URL" -build-url "${BUILD_URL:-local-run}"
 echo "==> Alert queued. Check the notifier Lambda logs and your Slack channel."
