@@ -33,7 +33,7 @@ pipeline {
                     mkdir -p terraform/build
                     GOOS=linux GOARCH=$(go env GOARCH) CGO_ENABLED=0 \
                       go build -tags lambda.norpc -o terraform/build/bootstrap ./cmd/notifier
-                    ( cd terraform/build && zip -q -FS notifier.zip bootstrap )
+                    ( cd terraform/build && rm -f notifier.zip && zip -q notifier.zip bootstrap )
 
                     terraform -chdir=terraform init -input=false
                     terraform -chdir=terraform apply -auto-approve -input=false \
