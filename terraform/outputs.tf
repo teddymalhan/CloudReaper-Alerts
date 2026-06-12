@@ -1,60 +1,40 @@
-output "api_endpoint" {
-  description = "HTTP API endpoint for POST /orders."
-  value       = "${aws_apigatewayv2_stage.local.invoke_url}/orders"
+# LocalStack REST API invoke path (the "_user_request_" form is the reliable one on LocalStack).
+output "send_message_endpoint" {
+  description = "POST orphan alerts here (consumed by cmd/sender)."
+  value       = "${var.aws_endpoint}/restapis/${aws_api_gateway_rest_api.orphan.id}/${aws_api_gateway_stage.prod.stage_name}/_user_request_/send-message"
 }
 
-output "source_queue_url" {
-  description = "FIFO source queue URL consumed by order-worker pods."
-  value       = aws_sqs_queue.source.url
+output "main_queue_url" {
+  description = "Main SQS queue URL (as the emulator reports it, internal host)."
+  value       = aws_sqs_queue.main.url
 }
 
-output "dlq_queue_url" {
-  description = "Dead-letter queue URL read by dlq-triage pods."
+output "main_queue_send_url" {
+  description = "Host-reachable main queue URL for cmd/sender -queue-url (direct-SQS mode)."
+  value       = "${var.aws_endpoint}/${local.account_id}/${aws_sqs_queue.main.name}"
+}
+
+output "dlq_url" {
+  description = "Dead-letter queue URL."
   value       = aws_sqs_queue.dlq.url
 }
 
-output "replay_queue_url" {
-  description = "Rate-limited replay queue URL."
-  value       = aws_sqs_queue.replay.url
+output "notifier_function_name" {
+  description = "Notifier Lambda function name."
+  value       = aws_lambda_function.notifier.function_name
 }
 
-output "event_bus_name" {
-  description = "EventBridge bus that normalizes API and replay work events."
-  value       = aws_cloudwatch_event_bus.orders.name
+output "slack_secret_name" {
+  description = "Secrets Manager secret holding Slack credentials."
+  value       = aws_secretsmanager_secret.slack.name
 }
 
-output "idempotency_table_name" {
-  description = "DynamoDB table used for message/business-key idempotency."
-  value       = aws_dynamodb_table.idempotency.name
+output "orphan_volume_id" {
+  description = "The deliberately unattached EBS volume (should be flagged)."
+  value       = aws_ebs_volume.orphan.id
 }
 
-output "orders_table_name" {
-  description = "DynamoDB table for committed order side effects."
-  value       = aws_dynamodb_table.orders.name
+output "orphan_eip_id" {
+  description = "The deliberately unassociated Elastic IP (should be flagged)."
+  value       = aws_eip.orphan.allocation_id
 }
-
-output "quarantine_bucket" {
-  description = "S3 bucket for poison message quarantine payloads."
-  value       = aws_s3_bucket.quarantine.bucket
-}
-
-output "worker_role_arn" {
-  description = "IRSA role ARN for the order-worker service account."
-  value       = aws_iam_role.worker.arn
-}
-
-output "triage_role_arn" {
-  description = "IRSA role ARN for the dlq-triage service account."
-  value       = aws_iam_role.triage.arn
-}
-
-output "eks_cluster_name" {
-  description = "Local Floci EKS cluster name."
-  value       = aws_eks_cluster.orders.name
-}
-
-output "remediation_state_machine_arn" {
-  description = "Step Functions remediation workflow ARN."
-  value       = local.remediation_machine_arn
-}
-

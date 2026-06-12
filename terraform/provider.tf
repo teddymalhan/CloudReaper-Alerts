@@ -3,6 +3,7 @@ provider "aws" {
   access_key = "test"
   secret_key = "test"
 
+  # LocalStack: skip real AWS validation and route every service to the local gateway.
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_requesting_account_id  = true
@@ -10,22 +11,13 @@ provider "aws" {
 
   endpoints {
     apigateway     = var.aws_endpoint
-    apigatewayv2   = var.aws_endpoint
-    cloudwatch     = var.aws_endpoint
     cloudwatchlogs = var.aws_endpoint
-    dynamodb       = var.aws_endpoint
     ec2            = var.aws_endpoint
-    eks            = var.aws_endpoint
-    events         = var.aws_endpoint
     iam            = var.aws_endpoint
-    kms            = var.aws_endpoint
+    lambda         = var.aws_endpoint
     s3             = var.aws_endpoint
     secretsmanager = var.aws_endpoint
-    sns            = var.aws_endpoint
     sqs            = var.aws_endpoint
-    ssm            = var.aws_endpoint
-    sfn            = var.aws_endpoint
     sts            = var.aws_endpoint
-    xray           = var.aws_endpoint
   }
 }
