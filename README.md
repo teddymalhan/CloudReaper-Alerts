@@ -35,10 +35,38 @@ Jenkinsfile
 
 ## Running locally
 
-_Filled in as the build progresses (see `scripts/run_local.sh`)._
+Requires Docker, Terraform, and Go.
+
+```bash
+# Optional: real Slack delivery (otherwise placeholders are used)
+export SLACK_BOT_TOKEN=xoxb-...
+export SLACK_CHANNEL_ID=C0123ABCD
+
+# Full demo: LocalStack → terraform apply → detect → (if orphans) send alert
+bash scripts/run_local.sh
+
+# Provision + detect, but don't actually POST the alert:
+bash scripts/run_local.sh --dry-run
+```
+
+The script: starts LocalStack, builds the notifier Lambda zip, `terraform apply`s the scan
+targets + pipeline, runs the detector (writes `build/report.{json,md}`, exits 1 on orphans), and
+on orphans POSTs the summary to the API Gateway endpoint, which fans out to SQS → Lambda → Slack.
+
+> Note: inside LocalStack the notifier Lambda reaches Secrets Manager via LocalStack's
+> auto-injected `AWS_ENDPOINT_URL`; the code falls back to it when set.
+
+## CI (Jenkins)
+
+`Jenkinsfile` runs the same flow: provision → detect → on orphans, send a Slack alert in the
+`post` block (and archives `build/report.*`). Set `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` as
+Jenkins credentials for real delivery.
 
 ## Testing
 
 ```bash
-go test ./...
+go test ./...      # unit tests for detector, alert, slack, sender, notifier
 ```
+
+The Go logic is unit-tested without AWS (fake EC2 client, httptest server, fake Slack poster).
+LocalStack/Terraform are exercised by `scripts/run_local.sh`.
