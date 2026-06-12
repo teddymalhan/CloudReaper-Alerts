@@ -31,6 +31,38 @@ Jenkinsfile
 | `scripts/run_local.sh` | One-shot local demo |
 | `Jenkinsfile`  | CI orchestration |
 
+## Building
+
+```bash
+make package       # everything: CLIs → build/, Lambda zips → terraform/build/
+make cli           # just detector + sender
+make lambdas       # just notifier.zip + reactor.zip
+
+make test          # go test ./...
+make clean         # remove all build output
+```
+
+Override `LAMBDA_GOARCH` if your real Lambda arch differs from your machine (e.g. `make lambdas LAMBDA_GOARCH=amd64`).
+
+## Releases
+
+Releases are published to GitHub Releases automatically when a version tag is pushed:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The [release workflow](.github/workflows/release.yml) runs [GoReleaser](https://goreleaser.com) and publishes:
+
+| Artifact | Description |
+|---|---|
+| `cloudreaper-alerts_detector_<version>_<os>_<arch>.tar.gz` | Detector CLI — Linux / macOS / Windows, amd64 + arm64 |
+| `cloudreaper-alerts_sender_<version>_<os>_<arch>.tar.gz` | Sender CLI — same platforms |
+| `cloudreaper-alerts_bootstrap_lambda_<version>_linux_<arch>.zip` | Notifier Lambda zip — drop-in for `var.lambda_zip` in Terraform |
+| `cloudreaper-alerts_bootstrap_lambda_<version>_linux_<arch>.zip` | Reactor Lambda zip — drop-in for `var.reactor_zip` in Terraform |
+| `checksums.txt` | SHA256 checksums for all artifacts |
+
 ## Running locally
 
 Requires Docker, Terraform, and Go.
