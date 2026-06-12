@@ -9,7 +9,7 @@ automatic Slack alert through an SQS-backed pipeline.
 
 ## Architecture
 
-<img width="2314" height="2091" alt="My First Board (2)" src="https://github.com/user-attachments/assets/37944f23-6697-4b7d-ac71-f621f43f34ab" />
+<img width="2314" height="2091" alt="My First Board (3)" src="https://github.com/user-attachments/assets/e073ef5b-9284-4832-b46a-b8b6a290293e" />
 
 
 ## Building
