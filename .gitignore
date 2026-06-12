@@ -1,0 +1,30 @@
+# Go build output
+/bin/
+*.test
+*.out
+dist/
+
+# Lambda build artifacts
+cmd/notifier/bootstrap
+cmd/notifier/*.zip
+terraform/*.zip
+terraform/bootstrap
+
+# Detector report artifacts
+report.json
+report.md
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform/example.tfvars
+
+# Nested sub-repos (their own git repos — never tracked here)
+/dummy-infra/
+/slacked/
+
+# Editor/OS
+.DS_Store
