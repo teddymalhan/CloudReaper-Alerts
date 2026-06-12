@@ -1,14 +1,7 @@
-# orphan-watch
+# 
 
 A self-contained **Go + Terraform** system that detects orphaned AWS resources and posts an
-automatic Slack alert through an SQS-backed pipeline. It combines two ideas:
-
-- the **orphan-detection** idea from `dummy-infra/` (now rewritten in Go), and
-- the **Slack delivery pipeline** from `slacked/` (`API Gateway → SQS → Lambda → Slack`,
-  reprovisioned here in Go + Terraform).
-
-> `dummy-infra/` and `slacked/` are separate nested git repos used only as references — this
-> project does not modify them.
+automatic Slack alert through an SQS-backed pipeline. 
 
 ## Architecture
 
