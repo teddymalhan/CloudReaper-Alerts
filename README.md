@@ -1,4 +1,12 @@
 <h1 align="center">CloudReaper Alerts</h1>
+
+<p align="center">
+  <a href="https://github.com/teddymalhan/CloudReaper-Alerts/actions/workflows/go.yml"><img src="https://github.com/teddymalhan/CloudReaper-Alerts/actions/workflows/go.yml/badge.svg" alt="Build status"></a>
+  <a href="https://github.com/teddymalhan/CloudReaper-Alerts/releases/latest"><img src="https://img.shields.io/github/v/release/teddymalhan/CloudReaper-Alerts" alt="Latest release"></a>
+  <a href="https://github.com/teddymalhan/CloudReaper-Alerts/blob/main/LICENSE"><img src="https://img.shields.io/github/license/teddymalhan/CloudReaper-Alerts" alt="License"></a>
+  <a href="https://go.dev/"><img src="https://img.shields.io/github/go-mod/go-version/teddymalhan/CloudReaper-Alerts" alt="Go version"></a>
+</p>
+
 <img width="2377" height="1995" alt="bettershot_1781242034744" src="https://github.com/user-attachments/assets/c8b237fa-d84a-446a-b226-f5b48f918f04" />
 
 <p align="center">
@@ -78,3 +86,14 @@ go test ./...      # unit tests for detector, alert, slack, sender, notifier
 
 The Go logic is unit-tested without AWS (fake EC2 client, httptest server, fake Slack poster).
 Floci/Terraform are exercised by `scripts/run_local.sh`.
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
+development workflow, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for
+community standards. Security issues should be reported per
+[SECURITY.md](SECURITY.md) rather than as a public issue.
+
+## License
+
+[MIT](LICENSE)
