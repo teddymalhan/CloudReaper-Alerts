@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
-	"github.com/teddymalhan/aws-play/internal/alert"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/alert"
 )
 
 // fakeEC2 is a minimal EC2API: it echoes back whatever the test stages, regardless of filters.

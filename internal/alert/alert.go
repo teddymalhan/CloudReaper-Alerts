@@ -3,7 +3,7 @@
 // drift apart.
 package alert
 
-import "github.com/teddymalhan/aws-play/internal/detector"
+import "github.com/teddymalhan/CloudReaper-Alerts/internal/detector"
 
 // OrphanAlert is the message body queued for the notifier to render into Slack.
 type OrphanAlert struct {

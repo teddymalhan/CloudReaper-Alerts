@@ -14,15 +14,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
-	"github.com/teddymalhan/aws-play/internal/detector"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/detector"
 )
 
 func main() {
 	var (
-		endpoint   = flag.String("endpoint", envOr("AWS_ENDPOINT_URL", "http://localhost:4566"), "AWS endpoint (LocalStack)")
+		endpoint   = flag.String("endpoint", os.Getenv("AWS_ENDPOINT_URL"), "AWS endpoint override (LocalStack/Floci)")
 		region     = flag.String("region", envOr("AWS_REGION", "us-east-1"), "AWS region")
-		accountID  = flag.String("account", envOr("ACCOUNT_ID", "000000000000"), "AWS account id (for report metadata)")
+		accountID  = flag.String("account", defaultAccountID(), "AWS account id (defaults to STS for real AWS)")
 		reportPath = flag.String("report", envOr("REPORT_PATH", "report.json"), "path to write JSON report")
 		mdPath     = flag.String("markdown", envOr("REPORT_MD_PATH", "report.md"), "path to write Markdown report")
 	)
@@ -30,10 +31,7 @@ func main() {
 
 	ctx := context.Background()
 
-	cfg, err := config.LoadDefaultConfig(ctx,
-		config.WithRegion(*region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
-	)
+	cfg, err := loadAWSConfig(ctx, *region, *endpoint)
 	if err != nil {
 		log.Fatalf("load aws config: %v", err)
 	}
@@ -44,7 +42,15 @@ func main() {
 		}
 	})
 
-	report, err := detector.Scan(ctx, client, *region, *accountID)
+	reportAccountID := *accountID
+	if reportAccountID == "" {
+		reportAccountID, err = currentAccountID(ctx, cfg)
+		if err != nil {
+			log.Fatalf("resolve account id: %v", err)
+		}
+	}
+
+	report, err := detector.Scan(ctx, client, *region, reportAccountID)
 	if err != nil {
 		log.Fatalf("scan: %v", err)
 	}
@@ -71,6 +77,34 @@ func writeJSON(path string, report detector.Report) error {
 		return err
 	}
 	return os.WriteFile(path, append(data, '\n'), 0o644)
+}
+
+func loadAWSConfig(ctx context.Context, region, endpoint string) (aws.Config, error) {
+	if endpoint != "" {
+		return config.LoadDefaultConfig(ctx,
+			config.WithRegion(region),
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
+		)
+	}
+	return config.LoadDefaultConfig(ctx, config.WithRegion(region))
+}
+
+func currentAccountID(ctx context.Context, cfg aws.Config) (string, error) {
+	out, err := sts.NewFromConfig(cfg).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	if err != nil {
+		return "", err
+	}
+	return aws.ToString(out.Account), nil
+}
+
+func defaultAccountID() string {
+	if v := os.Getenv("ACCOUNT_ID"); v != "" {
+		return v
+	}
+	if os.Getenv("AWS_ENDPOINT_URL") != "" {
+		return "000000000000"
+	}
+	return ""
 }
 
 func envOr(key, def string) string {

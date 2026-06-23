@@ -22,7 +22,24 @@ builds:
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
 
+  - id: cloudreaper
+    main: ./cmd/cloudreaper
+    binary: cloudreaper
+    flags: ["-trimpath", "-buildvcs=false"]
+    ldflags: ["-s", "-w", "-X main.version={{.Version}}"]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
   # Lambda binaries: linux-only, static, named bootstrap for provided.al2023
+  - id: scanner
+    main: ./cmd/scanner
+    binary: bootstrap
+    flags: ["-trimpath", "-buildvcs=false", "-tags=lambda.norpc"]
+    ldflags: ["-s", "-w"]
+    goos: [linux]
+    goarch: [amd64, arm64]
+    env: [CGO_ENABLED=0]
+
   - id: notifier
     main: ./cmd/notifier
     binary: bootstrap
@@ -42,8 +59,17 @@ builds:
     env: [CGO_ENABLED=0]
 
 archives:
-  # CLIs: tar.gz with the binary inside
-  - id: cli-archives
+  # Primary CLI: this is the Homebrew-installed UX.
+  - id: cloudreaper-archive
+    ids: [cloudreaper]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+  # Legacy/advanced CLIs remain release artifacts, but are not installed by Homebrew.
+  - id: legacy-cli-archives
     ids: [detector, sender]
     name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     formats: [tar.gz]
@@ -52,6 +78,11 @@ archives:
         formats: [zip]
 
   # Lambda zips: separate entries because both binaries are named bootstrap
+  - id: scanner-archive
+    ids: [scanner]
+    name_template: "{{ .ProjectName }}_scanner_lambda_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [zip]
+
   - id: notifier-archive
     ids: [notifier]
     name_template: "{{ .ProjectName }}_notifier_lambda_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
@@ -61,6 +92,18 @@ archives:
     ids: [reactor]
     name_template: "{{ .ProjectName }}_reactor_lambda_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     formats: [zip]
+
+homebrew_casks:
+  - name: cloudreaper
+    ids: [cloudreaper-archive]
+    binaries: [cloudreaper]
+    repository:
+      owner: teddymalhan
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    directory: Casks
+    homepage: "https://github.com/teddymalhan/CloudReaper-Alerts"
+    description: "AWS-native orphan resource alerts delivered to Slack"
 
 checksum:
   name_template: "checksums.txt"

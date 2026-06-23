@@ -10,8 +10,8 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	goslack "github.com/slack-go/slack"
 
-	"github.com/teddymalhan/aws-play/internal/alert"
-	"github.com/teddymalhan/aws-play/internal/slack"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/alert"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/slack"
 )
 
 // SlackPoster sends pre-built blocks to a channel. The real implementation wraps slack-go.

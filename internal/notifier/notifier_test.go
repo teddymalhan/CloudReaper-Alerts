@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	goslack "github.com/slack-go/slack"
 
-	"github.com/teddymalhan/aws-play/internal/alert"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/alert"
 )
 
 type fakePoster struct {

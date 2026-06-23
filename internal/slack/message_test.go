@@ -6,7 +6,7 @@ import (
 
 	goslack "github.com/slack-go/slack"
 
-	"github.com/teddymalhan/aws-play/internal/alert"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/alert"
 )
 
 // flatten extracts all rendered text from a set of blocks so tests can assert on content.

@@ -15,21 +15,33 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	goslack "github.com/slack-go/slack"
 
-	"github.com/teddymalhan/aws-play/internal/notifier"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/notifier"
 )
 
-// slackCredentials is the JSON shape stored in Secrets Manager.
+// slackCredentials is the JSON shape stored in Secrets Manager. CloudFormation writes the webhook
+// field; the legacy Terraform target still writes bot token + channel id.
 type slackCredentials struct {
-	SlackBotToken  string `json:"SLACK_BOT_TOKEN"`
-	SlackChannelID string `json:"SLACK_CHANNEL_ID"`
+	SlackWebhookURL string `json:"SLACK_WEBHOOK_URL"`
+	SlackBotToken   string `json:"SLACK_BOT_TOKEN"`
+	SlackChannelID  string `json:"SLACK_CHANNEL_ID"`
 }
 
-// slackClient adapts slack-go to the notifier.SlackPoster interface.
-type slackClient struct{ api *goslack.Client }
+// botClient adapts slack-go bot tokens to the notifier.SlackPoster interface.
+type botClient struct{ api *goslack.Client }
 
-func (c slackClient) Post(ctx context.Context, channelID string, blocks []goslack.Block) error {
+func (c botClient) Post(ctx context.Context, channelID string, blocks []goslack.Block) error {
 	_, _, _, err := c.api.SendMessageContext(ctx, channelID, goslack.MsgOptionBlocks(blocks...))
 	return err
+}
+
+// webhookClient posts to a Slack incoming webhook; channelID is ignored because webhooks bind the
+// destination in Slack.
+type webhookClient struct{ url string }
+
+func (c webhookClient) Post(ctx context.Context, _ string, blocks []goslack.Block) error {
+	return goslack.PostWebhookContext(ctx, c.url, &goslack.WebhookMessage{
+		Blocks: &goslack.Blocks{BlockSet: blocks},
+	})
 }
 
 func main() {
@@ -40,9 +52,12 @@ func main() {
 		log.Fatalf("load slack credentials: %v", err)
 	}
 
-	handler := notifier.Handler{
-		Poster:    slackClient{api: goslack.New(creds.SlackBotToken)},
-		ChannelID: creds.SlackChannelID,
+	handler := notifier.Handler{}
+	if creds.SlackWebhookURL != "" {
+		handler.Poster = webhookClient{url: creds.SlackWebhookURL}
+	} else {
+		handler.Poster = botClient{api: goslack.New(creds.SlackBotToken)}
+		handler.ChannelID = creds.SlackChannelID
 	}
 	lambda.Start(handler.Handle)
 }
@@ -74,8 +89,8 @@ func loadCredentials(ctx context.Context) (slackCredentials, error) {
 	if err := json.Unmarshal([]byte(aws.ToString(out.SecretString)), &creds); err != nil {
 		return slackCredentials{}, fmt.Errorf("parse secret json: %w", err)
 	}
-	if creds.SlackBotToken == "" || creds.SlackChannelID == "" {
-		return slackCredentials{}, fmt.Errorf("secret missing SLACK_BOT_TOKEN or SLACK_CHANNEL_ID")
+	if creds.SlackWebhookURL == "" && (creds.SlackBotToken == "" || creds.SlackChannelID == "") {
+		return slackCredentials{}, fmt.Errorf("secret missing SLACK_WEBHOOK_URL or SLACK_BOT_TOKEN/SLACK_CHANNEL_ID")
 	}
 	return creds, nil
 }
