@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
-	"github.com/teddymalhan/aws-play/internal/reactor"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/reactor"
 )
 
 func main() {

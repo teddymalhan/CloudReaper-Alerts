@@ -1,0 +1,355 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudReaper Alerts - AWS-native orphan resource detection with Slack notifications.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: cloudreaper
+  SlackWebhookUrl:
+    Type: String
+    NoEcho: true
+    MinLength: 1
+  ScanSchedule:
+    Type: String
+    Default: rate(15 minutes)
+  EnableRealtime:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  LambdaArchitecture:
+    Type: String
+    Default: x86_64
+    AllowedValues: [x86_64, arm64]
+  ScannerS3Bucket:
+    Type: String
+  ScannerS3Key:
+    Type: String
+  NotifierS3Bucket:
+    Type: String
+  NotifierS3Key:
+    Type: String
+  ReactorS3Bucket:
+    Type: String
+  ReactorS3Key:
+    Type: String
+
+Conditions:
+  RealtimeEnabled: !Equals [!Ref EnableRealtime, 'true']
+
+Resources:
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-orphan-dlq'
+      MessageRetentionPeriod: 1209600
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  MainQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-orphan-queue'
+      VisibilityTimeout: 150
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  SlackSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${ProjectName}/slack-webhook'
+      SecretString: !Sub '{"SLACK_WEBHOOK_URL":"${SlackWebhookUrl}"}'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  NotifierRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-notifier-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: notifier
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt MainQueue.Arn
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref SlackSecret
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  NotifierFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-notifier'
+      Runtime: provided.al2023
+      Handler: bootstrap
+      Architectures: [!Ref LambdaArchitecture]
+      Role: !GetAtt NotifierRole.Arn
+      Timeout: 25
+      Code:
+        S3Bucket: !Ref NotifierS3Bucket
+        S3Key: !Ref NotifierS3Key
+      Environment:
+        Variables:
+          SECRET_NAME: !Ref SlackSecret
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  QueueToNotifier:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt MainQueue.Arn
+      FunctionName: !GetAtt NotifierFunction.Arn
+      BatchSize: 1
+      Enabled: true
+
+  ScannerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-scanner-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: scanner
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeVolumes
+                  - ec2:DescribeInstances
+                  - ec2:DescribeAddresses
+                Resource: '*'
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt MainQueue.Arn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  ScannerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-scanner'
+      Runtime: provided.al2023
+      Handler: bootstrap
+      Architectures: [!Ref LambdaArchitecture]
+      Role: !GetAtt ScannerRole.Arn
+      Timeout: 60
+      Code:
+        S3Bucket: !Ref ScannerS3Bucket
+        S3Key: !Ref ScannerS3Key
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref MainQueue
+          ACCOUNT_ID: !Ref AWS::AccountId
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  ScanScheduleRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-scheduled-scan'
+      ScheduleExpression: !Ref ScanSchedule
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt ScannerFunction.Arn
+          Id: scanner
+
+  AllowScheduleInvokeScanner:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ScannerFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ScanScheduleRule.Arn
+
+  TrailBucket:
+    Type: AWS::S3::Bucket
+    Condition: RealtimeEnabled
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  TrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: RealtimeEnabled
+    Properties:
+      Bucket: !Ref TrailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt TrailBucket.Arn
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${TrailBucket.Arn}/AWSLogs/${AWS::AccountId}/*'
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+
+  OrphanTrail:
+    Type: AWS::CloudTrail::Trail
+    Condition: RealtimeEnabled
+    DependsOn: TrailBucketPolicy
+    Properties:
+      TrailName: !Sub '${ProjectName}-orphan-events'
+      S3BucketName: !Ref TrailBucket
+      IsLogging: true
+      IncludeGlobalServiceEvents: false
+      IsMultiRegionTrail: false
+      EnableLogFileValidation: true
+      EventSelectors:
+        - IncludeManagementEvents: true
+          ReadWriteType: WriteOnly
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  ReactorRole:
+    Type: AWS::IAM::Role
+    Condition: RealtimeEnabled
+    Properties:
+      RoleName: !Sub '${ProjectName}-reactor-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: reactor
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeVolumes
+                  - ec2:DescribeInstances
+                  - ec2:DescribeAddresses
+                Resource: '*'
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt MainQueue.Arn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  ReactorFunction:
+    Type: AWS::Lambda::Function
+    Condition: RealtimeEnabled
+    Properties:
+      FunctionName: !Sub '${ProjectName}-reactor'
+      Runtime: provided.al2023
+      Handler: bootstrap
+      Architectures: [!Ref LambdaArchitecture]
+      Role: !GetAtt ReactorRole.Arn
+      Timeout: 30
+      Code:
+        S3Bucket: !Ref ReactorS3Bucket
+        S3Key: !Ref ReactorS3Key
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref MainQueue
+          ACCOUNT_ID: !Ref AWS::AccountId
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  OrphanEventRule:
+    Type: AWS::Events::Rule
+    Condition: RealtimeEnabled
+    Properties:
+      Name: !Sub '${ProjectName}-orphan-actions'
+      EventPattern:
+        source: [aws.ec2]
+        detail-type: [AWS API Call via CloudTrail]
+        detail:
+          eventSource: [ec2.amazonaws.com]
+          eventName:
+            - DetachVolume
+            - DisassociateAddress
+            - TerminateInstances
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt ReactorFunction.Arn
+          Id: reactor
+
+  AllowEventBridgeInvokeReactor:
+    Type: AWS::Lambda::Permission
+    Condition: RealtimeEnabled
+    Properties:
+      FunctionName: !Ref ReactorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt OrphanEventRule.Arn
+
+Outputs:
+  QueueUrl:
+    Value: !Ref MainQueue
+  ScannerFunctionName:
+    Value: !Ref ScannerFunction
+  NotifierFunctionName:
+    Value: !Ref NotifierFunction
+  ReactorFunctionName:
+    Condition: RealtimeEnabled
+    Value: !Ref ReactorFunction
+  SlackSecretName:
+    Value: !Ref SlackSecret
+  ScanScheduleRuleName:
+    Value: !Ref ScanScheduleRule

@@ -1,5 +1,5 @@
-# Packaging for CloudReaper binaries: host CLIs (detector, sender) and
-# provided.al2023 Lambda zips (notifier, reactor).
+# Packaging for CloudReaper binaries: host CLIs (cloudreaper, detector, sender) and
+# provided.al2023 Lambda zips (scanner, notifier, reactor).
 #
 #   make package    # everything
 #   make notifier   # just the notifier Lambda zip
@@ -19,17 +19,19 @@ LAMBDA_GOARCH ?= $(shell $(GO) env GOARCH)
 GO_BUILD_FLAGS := -trimpath -buildvcs=false -ldflags "-s -w"
 ZIP_EPOCH      := 200001010000
 
-.PHONY: package cli lambdas detector sender notifier reactor test clean
+.PHONY: package cli lambdas cloudreaper detector sender scanner notifier reactor test clean
 
 package: cli lambdas
 
-cli: $(BUILD_DIR)/detector $(BUILD_DIR)/sender
-lambdas: $(LAMBDA_DIR)/notifier.zip $(LAMBDA_DIR)/reactor.zip
+cli: $(BUILD_DIR)/cloudreaper $(BUILD_DIR)/detector $(BUILD_DIR)/sender
+lambdas: $(LAMBDA_DIR)/scanner.zip $(LAMBDA_DIR)/notifier.zip $(LAMBDA_DIR)/reactor.zip
 
-detector: $(BUILD_DIR)/detector
-sender:   $(BUILD_DIR)/sender
-notifier: $(LAMBDA_DIR)/notifier.zip
-reactor:  $(LAMBDA_DIR)/reactor.zip
+cloudreaper: $(BUILD_DIR)/cloudreaper
+detector:    $(BUILD_DIR)/detector
+sender:      $(BUILD_DIR)/sender
+scanner:     $(LAMBDA_DIR)/scanner.zip
+notifier:    $(LAMBDA_DIR)/notifier.zip
+reactor:     $(LAMBDA_DIR)/reactor.zip
 
 $(BUILD_DIR)/%: FORCE
 	$(GO) build $(GO_BUILD_FLAGS) -o $@ ./cmd/$*

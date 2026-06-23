@@ -3,7 +3,7 @@ package alert
 import (
 	"testing"
 
-	"github.com/teddymalhan/aws-play/internal/detector"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/detector"
 )
 
 func TestFromReport(t *testing.T) {

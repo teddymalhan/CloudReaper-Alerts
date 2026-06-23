@@ -8,7 +8,7 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/teddymalhan/aws-play/internal/alert"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/alert"
 )
 
 // maxListed caps how many findings we enumerate in the message body.

@@ -13,8 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
-	"github.com/teddymalhan/aws-play/internal/alert"
-	"github.com/teddymalhan/aws-play/internal/detector"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/alert"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/detector"
 )
 
 type fakeSQS struct {

@@ -20,8 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
-	"github.com/teddymalhan/aws-play/internal/alert"
-	"github.com/teddymalhan/aws-play/internal/sender"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/alert"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/sender"
 )
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 		reportPath  = flag.String("report", envOr("REPORT_PATH", "report.json"), "path to detector report.json")
 		endpoint    = flag.String("endpoint", envOr("SLACKED_ENDPOINT", ""), "API Gateway /send-message URL (HTTP mode)")
 		queueURL    = flag.String("queue-url", os.Getenv("QUEUE_URL"), "SQS queue URL (direct-SQS mode)")
-		awsEndpoint = flag.String("aws-endpoint", envOr("AWS_ENDPOINT_URL", "http://localhost:4566"), "AWS endpoint for SQS mode")
+		awsEndpoint = flag.String("aws-endpoint", os.Getenv("AWS_ENDPOINT_URL"), "AWS endpoint override for SQS mode (LocalStack/Floci)")
 		region      = flag.String("region", envOr("AWS_REGION", "us-east-1"), "AWS region for SQS mode")
 		buildURL    = flag.String("build-url", os.Getenv("BUILD_URL"), "optional CI build URL for context")
 		always      = flag.Bool("always", false, "send even when no orphans are found")
@@ -69,10 +69,18 @@ func main() {
 }
 
 func enqueue(ctx context.Context, awsEndpoint, region, queueURL string, a alert.OrphanAlert) error {
-	cfg, err := config.LoadDefaultConfig(ctx,
-		config.WithRegion(region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
+	var (
+		cfg aws.Config
+		err error
 	)
+	if awsEndpoint != "" {
+		cfg, err = config.LoadDefaultConfig(ctx,
+			config.WithRegion(region),
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
+		)
+	} else {
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	}
 	if err != nil {
 		return err
 	}

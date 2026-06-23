@@ -13,9 +13,9 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 
-	"github.com/teddymalhan/aws-play/internal/alert"
-	"github.com/teddymalhan/aws-play/internal/detector"
-	"github.com/teddymalhan/aws-play/internal/sender"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/alert"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/detector"
+	"github.com/teddymalhan/CloudReaper-Alerts/internal/sender"
 )
 
 // Detail is the subset of a CloudTrail event record (the `detail` of an EventBridge event) we read.
